@@ -33,8 +33,6 @@ But for some undetermined root cause, having *_/boot_* under LVMLV on *_UEFI Mac
 makes bootloader (*GRUB*) not detecting additional disk (System Disk) and so, it cannot boot.
 For *_UEFI Machines_*, both *ESP & Boot* are on the first 2 partitions of the first disk.
 
-Check this bugzilla article: link:https://bugzilla.redhat.com/show_bug.cgi?id=1056342[Disk partitioning error if /boot on lvmlv]
-
 ====
 
 == Quick Start
