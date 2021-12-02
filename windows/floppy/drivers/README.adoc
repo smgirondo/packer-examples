@@ -1,0 +1,6 @@
+= Fedora is distributing some VirtIO Drivers signed by RedHat
+
+Some useful links:
+
+* link:https://github.com/virtio-win/virtio-win-pkg-scripts/blob/master/README.md[VirtIO-Win Drivers Package README]
+* link:https://fedorapeople.org/groups/virt/virtio-win/direct-downloads/stable-virtio/[Fedora VirtIO-Win Downloads] 

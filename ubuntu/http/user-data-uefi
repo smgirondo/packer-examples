@@ -1,0 +1,177 @@
+#cloud-config
+# Reference: https://ubuntu.com/server/docs/install/autoinstall-reference
+# Reference: https://curtin.readthedocs.io/en/latest/topics/storage.html
+# Example: https://gist.github.com/tlhakhan/97ee4d9f22eed7530c4be339a80a6f68
+autoinstall:
+  version: 1
+  locale: ${locale}
+  keyboard:
+    layout: ${keyboard_layout}
+    variant: ${keyboard_variant}
+  early-commands:
+    - systemctl stop ssh # otherwise packer tries to connect and exceed max attempts
+  network:
+    network:
+      version: 2
+      ethernets:
+        eth0:
+          dhcp4: yes
+          dhcp-identifier: mac
+  apt:
+    preserve_sources_list: false
+    primary:
+      - arches: [amd64]
+        uri: "http://archive.ubuntu.com/ubuntu/"
+    geoip: true
+  storage:
+    version: 1
+    grub:
+      #install_devices: [ /dev/${disk_boot} ]
+      reorder_uefi: True
+      update_nvram: True
+    swap:
+      size: 0
+    config:
+      - id: ${disk_boot}
+        type: disk
+        path: /dev/${disk_boot}
+        ptable: gpt
+        preserve: false
+        name: ''
+      - id: ${disk_boot}1
+        type: partition
+        device: ${disk_boot}
+        size: 128M
+        wipe: superblock
+        flag: boot
+        number: 1
+        preserve: false
+        grub_device: true
+      - id: ${disk_boot}1-format-boot
+        type: format
+        fstype: fat32
+        volume: ${disk_boot}1
+        preserve: false
+      - id: ${disk_boot}1-mount
+        type: mount
+        device: ${disk_boot}1-format-boot
+        path: /boot/efi
+      - id: ${disk_boot}2
+        type: partition
+        device: ${disk_boot}
+        size: -1
+        wipe: superblock
+        number: 1
+        preserve: false
+      - id: ${disk_boot}2-format-boot
+        type: format
+        fstype: xfs
+        volume: ${disk_boot}2
+        preserve: false
+      - id: ${disk_boot}2-mount
+        type: mount
+        device: ${disk_boot}2-format-boot
+        path: /boot
+      - id: ${disk_root}
+        type: disk
+        path: /dev/${disk_root}
+        ptable: gpt
+        preserve: false
+        wipe: superblock
+        name: ''
+      - id: ubuntu
+        type: lvm_volgroup
+        devices: [ ${disk_root} ]
+        preserve: false
+        name: ubuntu
+      - id: lv-home
+        type: lvm_partition
+        preserve: false
+        volgroup: ubuntu
+        size: ${lv_home_size}
+        name: home
+      - id: lv-home-format
+        type: format
+        volume: lv-home
+        preserve: false
+        fstype: xfs
+        label: home
+      - id: lv-home-mount
+        type: mount
+        device: lv-home-format
+        path: /home
+      - id: lv-root
+        type: lvm_partition
+        preserve: false
+        volgroup: ubuntu
+        size: ${lv_root_size}
+        name: root
+      - id: lv-root-format
+        type: format
+        volume: lv-root
+        preserve: false
+        fstype: xfs
+        label: root
+      - id: lv-root-mount
+        type: mount
+        device: lv-root-format
+        path: /
+      - id: lv-tmp
+        type: lvm_partition
+        preserve: false
+        volgroup: ubuntu
+        size: ${lv_tmp_size}
+        name: tmp
+      - id: lv-tmp-format
+        type: format
+        volume: lv-tmp
+        preserve: false
+        fstype: xfs
+        label: tmp
+      - id: lv-tmp-mount
+        type: mount
+        device: lv-tmp-format
+        path: /tmp
+      - id: lv-var
+        type: lvm_partition
+        preserve: false
+        volgroup: ubuntu
+        size: ${lv_var_size}
+        name: var
+      - id: lv-var-format
+        type: format
+        volume: lv-var
+        preserve: false
+        fstype: xfs
+        label: var
+      - id: lv-var-mount
+        type: mount
+        device: lv-var-format
+        path: /var
+  ssh:
+    install-server: yes
+    authorized-keys:
+%{ for pubkey in ssh_pubkeys ~}
+      - "${pubkey}"
+%{ endfor ~}
+    allow-pw: yes
+  identity:
+    hostname: "${vm_name}"
+    password: "${ssh_password_crypted}"
+    #realname: "${ssh_fullname}"
+    username: "${ssh_username}"
+  packages:
+%{ for package in packages ~}
+    - ${package}
+%{ endfor ~}
+  user-data:
+    disable_root: ${disable_root} 
+  late-commands:
+    - echo '${ssh_username} ALL=(ALL) NOPASSWD:ALL' > /target/etc/sudoers.d/${ssh_username}
+    - sed -ie 's/GRUB_CMDLINE_LINUX_DEFAULT=.*/GRUB_CMDLINE_LINUX=""/' /target/etc/default/grub
+    - sed -ie 's/GRUB_CMDLINE_LINUX=.*/GRUB_CMDLINE_LINUX="net.ifnames=0 ipv6.disable=1 biosdevname=0"/' /target/etc/default/grub
+    - curtin in-target --target /target update-grub2
+    # Avoid Cloud-Init datasource set to None (iid-datasource-none)
+    #- rm -f /target/etc/cloud/cloud.cfg.d/99-installer.cfg
+    # Avoid Cloud-Init network lockout
+    #- rm -f /target/etc/cloud/cloud.cfg.d/subiquity-disable-cloudinit-networking.cfg

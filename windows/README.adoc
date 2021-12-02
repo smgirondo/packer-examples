@@ -1,0 +1,79 @@
+= Windows Packer Template Examples
+:experimental:
+
+* *BIOS* & *UEFI* Templates
+* MultiBoot / System Disk Templates (first disk *Boot & WinRE*, second for *System*)
+* Drivers (*Storage & Network*) and Auto-Unattednd injected through floppy
+* Virtio drivers are loaded on startup
+* Configured as 2 CPU and 2 GB memory by default (cpu, memory variables for custom setup)
+* Some auxiliary scripts are included:
+** Firewall (cifs, icmp, rdp)
+** RDP enabled
+** UAC Disabled
+** WinRM Install & Setup
+** WinUpdate Disabled
+* Packer HTTP Server available but not in use
+* Packer user with password `<check template>`
+* Usefull variables (check *_.pkrvars.hcl_*):
+** build_directory: Output images directory
+** cache_directory: Cache for ISO images directory (default: *$PACKER_CACHE_DIR*)
+** disk_size_boot: Boot Disk Size (*<size[M|G|T]>*)
+** disk_size_ooot: System Disk Size (*<size[M|G|T]>*)
+** iso_checksum: Bootstrap ISO checksum hash
+** iso_checksum_type: Bootstrap ISO checksum type (*md5*, *sha1*, *sha256*, *sha512*, etc)
+** iso_file: Bootstrap ISO File
+** iso_external_mirror: Bootstrap ISO External Location (mirror)
+** iso_external_mirror_path: Bootstrap ISO External Context (download path)
+** iso_external_mirror_schema: Bootstrap ISO External protocol (download protocol)
+** Check for Internacionalization variables: language, locale
+** Check for Communicator variables: winrm_password, winrm_pubkeys, winrm_username
+
+== Quick Start
+
+[example,shell,opts=hardbreaks]
+----
+$ packer build -var-file="windows-2k16-bios.pkrvars.kcl" windows-server-bios.pkr.hcl
+----
+
+== Windows 2016 Example
+
+Alter the admin password, the disk size, and just build *QEMU Image*:
+
+[example,shell,opts=hardbreaks]
+----
+$ read -p 'Enter password: ' -s password
+$ packer build -var-file="windows-2k16-bios.pkrvars.kcl" -var "winrm_password=$password" -only="qemu.qemu" windows-server-bios.pkr.hcl
+----
+
+
+*NOTE*: Password strength requirements are pretty harsh
+http://technet.microsoft.com/en-us/library/cc786468%28v=ws.10%29.aspx
+
+Some useful links:
+
+* link:https://docs.microsoft.com/en-us/windows-hardware/customize/desktop/unattend/microsoft-windows-setup-diskconfiguration[Windows Auto Unattend Disk Configuration]
+* link:https://docs.microsoft.com/en-us/windows-hardware/manufacture/desktop/configure-biosmbr-based-hard-drive-partitions?view=windows-11[Windows MBR Recommended Partition Layout]
+* link:https://docs.microsoft.com/en-us/windows-hardware/manufacture/desktop/windows-setup-log-files-and-event-logs?view=windows-11[Windows Setup Logs]
+* link:https://www.tenforums.com/tutorials/96683-create-media-automated-unattended-install-windows-10-a.html[Windows Unattend Media Creation]
+* link:https://github.com/jakobadam/packer-qemu-templates[Jakobadam Repo Examples]
+
+
+''''
+[TIP]
+.Probably you will need this...
+====
+[example,opts="hardbreaks,collapsible",subs=+quotes]
+.Open *_Command Prompt_* from *WinPE*
+
+Press kbd:[Shift+F10] to open a command prompt from WinPE...
+====
+
+[TIP]
+.Probably you also will need this...
+====
+[example,opts="hardbreaks,collapsible",subs=+quotes]
+.Query booted *_Firmware Type_* from *WinPE*
+
+Execute: *_wpeutil UpdateBootInfo_*
+Then: *_reg query HKLM\System\CurrentControlSet\Control /v PEFirmwareType_*
+====

@@ -6,3 +6,9 @@ crash.log
 
 # For built boxes
 *.box
+
+.DS_Store
+.*.sw?
+build/
+Vagrantfile
+.vagrant/

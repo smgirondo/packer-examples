@@ -1,0 +1,95 @@
+= Debian Packer Template Examples
+:experimental:
+
+* *QEMU*, *vBox* & *vSphere* (pending) Builds
+* *BIOS* & *UEFI* Templates
+* Single Boot & System Disk Templates (just one disk for *Boot* and *System*)
+* Configured as 2 CPU and 2 GB memory by default (cpu, memory variables for custom setup)
+* Some auxiliary scripts are included:
+** Additional Package Install
+** Some resources cleanup (Inteface MAC, Host Keys, Temp, Package Cache, etc)
+** SELinux Disabled
+* Packer HTTP Server available but not in use
+* Package Update & System Upgrade
+* Usefull variables (check *_.pkrvars.hcl_*):
+** build_directory: Output images directory
+** cache_directory: Cache for ISO images directory (default: *$PACKER_CACHE_DIR*)
+** disk_size_boot: Boot Disk Size (*<size[M|G|T]>*)
+** disk_size_ooot: System Disk Size (*<size[M|G|T]>*)
+** iso_checksum: Bootstrap ISO checksum hash
+** iso_checksum_type: Bootstrap ISO checksum type (*md5*, *sha1*, *sha256*, *sha512*, etc)
+** iso_file: Bootstrap ISO File
+** iso_external_mirror: Bootstrap ISO External Location (mirror)
+** iso_external_mirror_path: Bootstrap ISO External Context (download path)
+** iso_external_mirror_schema: Bootstrap ISO External protocol (download protocol)
+** Check for Internacionalization variables: language, locale
+** Check for Communicator variables: winrm_password, winrm_pubkeys, winrm_username
+
+[NOTE]
+====
+Debian Installer (*_partman_*) does not support having "*_Whole Disk LVM Physical Volume_*"
+during install, but also it does not support "reusing" already existent *PV* / *VG*.
+That's why just one disk is deployed, having partitions for boot and system (*LVM*).
+For *_UEFI Machine_*, both *ESP & Boot* are on the first 2 partitions, the remaining space
+is used for *System LVM Volumes*.
+
+====
+
+== Quick Start
+
+[example,shell,opts=hardbreaks]
+----
+$ packer build -var-file="debian-11-uefi.pkrvars.hcl" debian-server-uefi-x86_64.pkr.hcl
+----
+
+== Debian 11 UEFI Example
+
+Alter the admin password, the disk size, and just build *QEMU Image*:
+
+[example,shell,opts=hardbreaks]
+----
+$ read -p 'Enter password: ' -s password
+$ packer build -var-file="debian-11-uefi.pkrvars.hcl" -var "ssh_password=$password" -var="disk_root_size=32G" -only="qemu.qemu" debian-server-uefi-x86_64.pkr.hcl
+----
+
+[NOTE]
+====
+Debian Installer logs:
+
+* /var/log/syslog
+* /var/log/partman
+* /var/lib/preseed/log
+
+====
+
+Some useful links:
+
+* link:https://d-i.debian.org/manual/en.amd64/apbs01.html[Debian Automation Installation using preseeding]
+* link:https://salsa.debian.org/installer-team/debian-installer/-/blob/master/doc/devel/partman-auto-recipe.txt[D-I Partman Auto Recipe Example]
+* link:https://www.debian.org/releases/bullseye/example-preseed.txt[Example Preseed]
+* link:https://github.com/tylert/packer-build[TylerT Repo Examples]
+* link:https://github.com/jakobadam/packer-qemu-templates[Jakobadam Repo Examples]
+* link:https://github.com/ruzickap/packer-templates[RuzicKap Repo Examples]
+
+
+''''
+[TIP]
+.Probably you will need this...
+====
+[example,opts="hardbreaks,collapsible",subs=+quotes]
+.Open *_Command Prompt_* from *Debian Installer*
+
+Press kbd:[Alt+F2] to open a terminal (*pty*) from Debian Installer...
+====
+
+[TIP]
+.Probably you also will need this...
+====
+[example,opts="hardbreaks,collapsible",subs=+quotes]
+.Generate *_password hash_* for *Communicator Credentials*
+
+$ *python3 -c 'import crypt, getpass; print(crypt.crypt(getpass.getpass()))'*
+_Password:_
+#*$6$rq4fmPL0bqDgHADK$mjaa6jLSvPHNiCUgtTGhdHqs2PgRok4EtQwLTnr/kjOqN4ZWLgPn8FxgT59r1Ec02i/VqiRx70iCCsjH7E1zm0*#
+
+====

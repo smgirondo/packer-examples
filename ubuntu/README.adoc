@@ -1,0 +1,96 @@
+= Ubuntu Packer Template Examples
+:experimental:
+
+* *QEMU*, *vBox* & *vSphere* (pending) Builds
+* *BIOS* & *UEFI* Templates
+* Multi Boot & System Disk Templates (first disk for *Boot*, second for *System*)
+* System disk is configured using "*_Whole Disk LVM Physical Volumes_*" foreseeing easy resizing
+* Configured as 2 CPU and 2 GB memory by default (cpu, memory variables for custom setup)
+* Some auxiliary scripts are included:
+** Additional Package Install
+** Some resources cleanup (Inteface MAC, Host Keys, Temp, Package Cache, etc)
+** SELinux Disabled
+* Packer HTTP Server available but not in use
+* Package Update & System Upgrade
+* Usefull variables (check *_.pkrvars.hcl_*):
+** build_directory: Output images directory
+** cache_directory: Cache for ISO images directory (default: *$PACKER_CACHE_DIR*)
+** disk_size_boot: Boot Disk Size (*<size[M|G|T]>*)
+** disk_size_ooot: System Disk Size (*<size[M|G|T]>*)
+** iso_checksum: Bootstrap ISO checksum hash
+** iso_checksum_type: Bootstrap ISO checksum type (*md5*, *sha1*, *sha256*, *sha512*, etc)
+** iso_file: Bootstrap ISO File
+** iso_external_mirror: Bootstrap ISO External Location (mirror)
+** iso_external_mirror_path: Bootstrap ISO External Context (download path)
+** iso_external_mirror_schema: Bootstrap ISO External protocol (download protocol)
+** Check for Internacionalization variables: language, locale
+** Check for Communicator variables: winrm_password, winrm_pubkeys, winrm_username
+
+[NOTE]
+====
+Subiquity Installer does support *_/boot_* on *LVMLV* and also the *_Whole Disk LVMPV_*.
+But for some undetermined root cause, having *_/boot_* under LVMLV on *_UEFI Machines_*
+makes bootloader (*GRUB*) not detecting additional disk (System Disk) and so, it cannot boot.
+For *_UEFI Machines_*, both *ESP & Boot* are on the first 2 partitions of the first disk.
+
+Check this bugzilla article: link:https://bugzilla.redhat.com/show_bug.cgi?id=1056342[Disk partitioning error if /boot on lvmlv]
+
+====
+
+== Quick Start
+
+[example,shell,opts=hardbreaks]
+----
+$ packer build -var-file="ubuntu-21.10-bios.pkrvars.hcl" ubuntu-server-bios-x86_64.pkr.hcl
+----
+
+== Ubuntu 21 UEFI
+
+Alter the admin password, the disk size, and just build QEMU Image:
+
+[example,shell,opts=hardbreaks]
+----
+$ read -p 'Enter password: ' -s password
+$ packer build -var-file="ubuntu-21.10-uefi.pkrvars.hcl" -var "ssh_password=$password" -only="qemu.qemu" ubuntu-server-uefi-x86_64.pkr.hcl
+----
+
+[NOTE]
+====
+Subiquity Installer logs:
+
+* /var/log/installer
+* /var/log/curtin
+* /var/lib/cloud
+
+====
+
+Some useful links:
+
+* link:https://ubuntu.com/server/docs/install/autoinstall-reference[Subiquity Auto-Install Reference]
+* link:https://gist.github.com/tlhakhan/97ee4d9f22eed7530c4be339a80a6f68[Example Auto-Install]
+* link:https://github.com/tylert/packer-build[TylerT Repo Examples]
+* link:https://github.com/jakobadam/packer-qemu-templates[Jakobadam Repo Examples]
+* link:https://github.com/ruzickap/packer-templates[RuzicKap Repo Examples]
+
+
+''''
+[TIP]
+.Probably you will need this...
+====
+[example,opts="hardbreaks,collapsible",subs=+quotes]
+.Open *_Command Prompt_* from *Subiquity*
+
+Press kbd:[Alt+F2] to open a terminal (*pty*) from Subiquity Installer...
+====
+
+[TIP]
+.Probably you also will need this...
+====
+[example,opts="hardbreaks,collapsible",subs=+quotes]
+.Generate *_password hash_* for *Communicator Credentials*
+
+$ *python3 -c 'import crypt, getpass; print(crypt.crypt(getpass.getpass()))'*
+_Password:_
+#*$6$rq4fmPL0bqDgHADK$mjaa6jLSvPHNiCUgtTGhdHqs2PgRok4EtQwLTnr/kjOqN4ZWLgPn8FxgT59r1Ec02i/VqiRx70iCCsjH7E1zm0*#
+
+====

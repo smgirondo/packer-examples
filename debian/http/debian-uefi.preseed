@@ -1,0 +1,179 @@
+# Reference: https://github.com/xobs/debian-installer/blob/master/doc/devel/partman-auto-recipe.txt
+
+# Locale Setup
+d-i debian-installer/language string ${language}
+d-i debian-installer/country string ${country}
+d-i debian-installer/locale string ${locale}
+d-i localechooser/supported-locales multiselect es_ES.UTF-8
+d-i pkgsel/install-language-support boolean true
+
+# Keyboard Setup
+d-i keyboard-configuration/xkb-keymap select ${keyboard}
+
+# Clock Setup
+# d-i time/zone string Canada/Eastern
+d-i time/zone string ${timezone}
+d-i clock-setup/utc boolean ${system_clock_in_utc}
+# set above to false if making a bootable USB to run on same system as Windows
+
+# Network Setup
+d-i netcfg/get_hostname string ${vm_name}
+d-i netcfg/get_domain string
+# https://bugs.launchpad.net/ubuntu/+source/netcfg/+bug/713385
+d-i netcfg/choose_interface select auto
+# make sure you also add "interface=auto" to your boot command too
+# https://bugs.launchpad.net/ubuntu/+source/netcfg/+bug/713385
+
+# User Setup
+d-i passwd/user-fullname string ${ssh_fullname}
+d-i passwd/username string ${ssh_username}
+#d-i passwd/user-password password ${ssh_password}
+#d-i passwd/user-password-again password ${ssh_password}
+d-i passwd/user-password-crypted password ${ssh_password_crypted}
+d-i user-setup/allow-password-weak boolean true
+d-i user-setup/encrypt-home boolean false
+d-i passwd/root-login boolean false
+
+# Partitioning
+# If the system has free space you can choose to only partition that space.
+# This is only honoured if partman-auto/method (below) is not set.
+# Alternatives: custom, some_device, some_device_crypto, some_device_lvm.
+#d-i partman-auto/init_automatically_partition select biggest_free
+d-i partman-auto/method string lvm
+d-i partman-auto/disk string /dev/vda
+d-i partman-auto-lvm/guided_size string max
+d-i partman-md/device_remove_md boolean true
+d-i partman-lvm/device_remove_lvm boolean true
+d-i partman-lvm/confirm boolean true
+d-i partman-lvm/confirm_nooverwrite boolean true
+# Force UEFI booting ('BIOS compatibility' will be lost). Default: false.
+d-i partman-efi/non_efi_system boolean true
+# Ensure the partition table is GPT - this is required for EFI
+d-i partman-partitioning/choose_label string gpt
+d-i partman-partitioning/default_label string gpt
+d-i partman-auto-lvm/no_boot boolean true
+d-i partman-auto-lvm/new_vg_name string debian
+d-i grub-installer/force-efi-extra-removable boolean true
+d-i grub-installer/no-nvram boolean false
+d-i partman-auto/choose_recipe select single-disk-efi
+d-i partman-auto/expert_recipe string \
+  multi-disk-uefi ::                  \
+    128 128 256 fat32                 \
+      $iflabel{ gpt }                 \
+      $reusemethod{ }                 \
+      method{ efi }                   \
+      format{ }                       \
+    .                                 \
+    1024 200000 1024 xfs              \
+      $primary{ }                     \
+      $bootable{ }                    \
+      method{ format }                \
+      format{ }                       \
+      use_filesystem{ }               \
+      filesystem{ xfs }               \
+      mountpoint{ /boot }             \
+    .                                 \
+    8192 100000 -1 xfs                \
+      $defaultignore{ }               \
+      $primary{ }                     \
+      method{ lvm }                   \
+      vg_name{ debian }               \
+    .                                 \
+    1024 1024 2048 xfs                \
+      $lvmok{ }                       \
+      in_vg{ debian }                 \
+      method{ format }                \
+      format{ }                       \
+      use_filesystem{ }               \
+      filesystem{ xfs }               \
+      lv_name{ home }                 \
+      mountpoint{ /home }             \
+    .                                 \
+    4096 8192 8192 xfs                \
+      $lvmok{ }                       \
+      in_vg{ debian }                 \
+      method{ format }                \
+      format{ }                       \
+      use_filesystem{ }               \
+      filesystem{ xfs }               \
+      lv_name{ root }                 \
+      mountpoint{ / }                 \
+    .                                 \
+    100% 200% 200% linux-swap         \
+      $lvmok{ }                       \
+      in_vg{ debian }                 \
+      method{ swap }                  \
+      format{ }                       \
+      lv_name{ swap }                 \
+    .                                 \
+    1024 2048 2048 xfs                \
+      $lvmok{ }                       \
+      in_vg{ debian }                 \
+      method{ format }                \
+      format{ }                       \
+      use_filesystem{ }               \
+      filesystem{ xfs }               \
+      lv_name{ tmp }                  \
+      mountpoint{ /tmp }              \
+    .                                 \
+    4096 8192 8192 xfs                \
+      $lvmok{ }                       \
+      in_vg{ debian }                 \
+      method{ format }                \
+      format{ }                       \
+      use_filesystem{ }               \
+      filesystem{ xfs }               \
+      lv_name{ var }                  \
+      mountpoint{ /var }              \
+    .                                 \
+
+d-i partman/default_filesystem string xfs
+d-i partman-partitioning/confirm_write_new_label boolean true
+d-i partman/choose_partition select finish
+d-i partman/confirm boolean true
+d-i partman/confirm_nooverwrite boolean true
+
+### Package selection
+##tasksel tasksel/first multiselect standard, web-server, kde-desktop
+d-i hw-detect/load_firmware boolean false
+d-i hw-detect/load_media boolean false
+apt-cdrom-setup apt-setup/cdrom/set-first boolean false
+d-i mirror/country string manual
+d-i mirror/http/hostname string ${mirror}
+d-i mirror/http/directory string /debian
+d-i mirror/http/proxy string
+# d-i mirror/http/proxy string ${apt_cache_url}
+d-i apt-setup/contrib boolean true
+d-i apt-setup/non-free boolean true
+tasksel tasksel/first multiselect print-server, ssh-server, standard
+d-i pkgsel/include string cloud-init, openssh-server, sudo, unattended-upgrades
+popularity-contest popularity-contest/participate boolean false
+
+# Boot loader installation
+# Grub is the boot loader (for x86).
+# This is fairly safe to set, it makes grub install automatically to the MBR
+# # if no other operating system is detected on the machine.
+ d-i grub-installer/only_debian boolean true
+
+# # This one makes grub-installer install to the MBR if it also finds some other
+# # OS, which is less safe as it might not be able to boot that other OS.
+ d-i grub-installer/with_other_os boolean true
+
+# Due notably to potential USB sticks, the location of the MBR can not be
+# determined safely in general, so this needs to be specified:
+#d-i grub-installer/bootdev  string /dev/vda
+# To install to the first device (assuming it is not a USB stick):
+d-i grub-installer/bootdev  string default
+
+# Remove auxiliary LV (partman bug)
+#d-i preseed/late_command string lvremove -f /dev/debian/delete > /dev/null 2>&1
+
+# Complete Secure Boot UEFI Bootloader deployment 
+## d-i force-efi-extra-removable is not enough
+d-i preseed/late_command string \
+    mkdir -p /target/boot/efi/EFI/BOOT && \
+    cp /target/boot/efi/EFI/debian/* /target/boot/efi/EFI/BOOT/ && \
+    mv /target/boot/efi/EFI/BOOT/shimx64.efi /target/boot/efi/EFI/BOOT/BOOTX64.EFI
+
+# Final Setup
+d-i finish-install/reboot_in_progress note
